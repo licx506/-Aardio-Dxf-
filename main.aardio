@@ -1,0 +1,232 @@
+import win.ui;
+io.open();
+/*DSG{{*/
+mainForm = win.form(text="DWG关键字信息提取";right=405;bottom=542)
+mainForm.add(
+AddDxfMenu={cls="button";text="选择图纸文件夹";left=153;top=163;right=267;bottom=187;z=10};
+AddKeyWord={cls="button";text="添加";left=153;top=72;right=220;bottom=96;z=5};
+DelKeyWord={cls="button";text="删除";left=236;top=72;right=303;bottom=96;z=6};
+DxfMenu={cls="edit";text="F:\天翼云下载\验收图纸\DXF";left=152;top=132;right=385;bottom=156;edge=1;z=9};
+FileLocation={cls="edit";left=153;top=196;right=386;bottom=220;edge=1;z=11};
+KeyWord={cls="edit";text="请输入...";left=153;top=39;right=386;bottom=63;edge=1;z=4};
+KeyWordlist={cls="listbox";left=14;top=40;right=128;bottom=534;acceptfiles=1;edge=1;items={};vscroll=1;z=2};
+LogPrint={cls="edit";left=153;top=287;right=386;bottom=485;autohscroll=false;edge=1;multiline=1;vscroll=1;z=14};
+NulKeyWord={cls="button";text="清空";left=319;top=72;right=386;bottom=96;z=7};
+SetFileLocation={cls="button";text="设置保存位置";left=272;top=163;right=386;bottom=187;z=12};
+StarBut={cls="button";text="开始";left=145;top=237;right=263;bottom=263;z=15};
+StopBut={cls="button";text="停止";left=276;top=236;right=394;bottom=262;z=16};
+groupKey={cls="groupbox";text="关键字管理";left=145;top=19;right=394;bottom=110;edge=1;z=3};
+groupLog={cls="groupbox";text="输出日志";left=145;top=266;right=394;bottom=534;edge=1;z=13};
+groupOS={cls="groupbox";text="读取/保存";left=145;top=111;right=394;bottom=230;edge=1;z=8};
+progress={cls="progress";left=153;top=508;right=386;bottom=527;edge=1;max=100;min=0;z=17};
+static={cls="static";text="关键字列表：";left=21;top=15;right=108;bottom=36;align="center";center=1;transparent=1;z=1};
+static2={cls="static";text="清单读取/处理进度：";left=153;top=487;right=386;bottom=507;center=1;transparent=1;z=18}
+)
+/*}}*/
+
+//关键字列表默认设置
+list = {"工程";"工图";"板图";"由图";"配图";"序图";"统图";"面图";"意图";"程图";"盘图";"布图";"998KAS";"998SLX";"998SFX";"998YJS";"998JSX";"998YPH";"998TGX";"998BCX";"998TMS";"998MGT";"998SCX";"998ZPX";"998YCX";"998KYB"};
+关键字匹配规则 = string.join( list, '|' )
+io.print("关键字匹配规则：",关键字匹配规则)
+list = table.unique(list);
+for(v,k in list ){
+mainForm.KeyWordlist.add(k);
+}
+//添加关键字列表KeyWordlist
+mainForm.AddKeyWord.oncommand = function(id,event){
+	str = mainForm.KeyWord.text;
+	mainForm.KeyWordlist.add(str)
+	mainForm.KeyWordlist.selIndex = mainForm.KeyWordlist.count;
+	mainForm.KeyWordlist.items = table.unique(mainForm.KeyWordlist.items);
+	关键字匹配规则 = string.join( mainForm.KeyWordlist.items, '|' )
+	mainForm.LogPrint.text = ""
+	mainForm.LogPrint.log( 关键字匹配规则,'\r\n' )
+	//io.print(关键字匹配规则);
+}
+//清空关键字列表KeyWordlist
+mainForm.NulKeyWord.oncommand = function(id,event){
+	mainForm.KeyWordlist.clear();
+	mainForm.redraw();
+	mainForm.LogPrint.log( 关键字匹配规则,'\r\n' )
+}
+//删除关键字
+mainForm.DelKeyWord.oncommand = function(id,event){
+	mainForm.KeyWordlist.delete(); 
+	关键字匹配规则 = string.join( mainForm.KeyWordlist.items, '|' )
+	mainForm.LogPrint.text = ""
+	mainForm.LogPrint.log( 关键字匹配规则,'\r\n' )
+	//io.print(关键字匹配规则);
+}
+//选择图纸文件夹DxfMenu
+import fsys.dlg;
+mainForm.AddDxfMenu.oncommand = function(id,event){
+	Dxfmenu = fsys.dlg.opendir();
+	mainForm.DxfMenu.text = Dxfmenu
+}
+//设置保存文件地址FileLocation
+mainForm.SetFileLocation.oncommand = function(id,event){
+	Filemenu = fsys.dlg.opendir();
+	mainForm.FileLocation.text = Filemenu	
+}
+
+var 开始处理 = function(mainForm){
+	import fsys;
+	import console; 
+	import string.keywords;
+	var beginTick = time.tick();
+	var keywords = string.keywords(string.join(mainForm.KeyWordlist.items,'|'),936);
+	var filelist = {};
+	fsys.enum(mainForm.DxfMenu.text, //指定要遍历的目录
+			"*.dxf", //指定查询文件名,支持windows掩码
+			function(dir,filename,fullpath,findData){
+				//io.print(dir,filename,fullpath,findData)
+				//import console;
+				//console.varDump(findData)
+
+				if(filename){
+           			//io.print("发现文件：",filename)
+           			//io.print("文件路径：",fullpath)
+           			//将文路径添加至文件列表
+           			table.push(filelist,fullpath);
+				}
+				else{
+					io.print("发现目录：",dir)
+				}
+			
+			//return false;
+		} //function结束。
+	
+	)//遍历结束。
+	var 用时 = (time.tick() - beginTick) / 1000 
+	mainForm.LogPrint.print("读取到"++#filelist++"个文件。用时："++用时++"秒");
+	mainForm.static2.text = "清单读取/处理进度："++#filelist++"/0"
+		//初始化进度条
+	mainForm.progress.min = 0;
+	mainForm.progress.max = #filelist;
+	mainForm.progress.pos = 0;
+	mainForm.progress.hide = false;	//显示进度条
+	
+	for(k,filename in filelist){ //循环读取文件列表
+		tk2 = time.tick();
+		var lines = keywords.anyMatchLines(string.loadBuffer(filename),936); 
+		lines = table.unique(lines);
+		var data = string.join(lines,',') ;
+		if(mainForm.FileLocation.text!=null){
+			保存地址 = mainForm.FileLocation.text++"\识别结果.csv"	
+		}else {
+			保存地址 = "D:\DXF识别结果.csv"
+		}
+		//io.print(string.fromto(data,936,65001))
+		//string.save("/out.txt",data)
+		file = io.open (保存地址,"a+" )
+		file.write(string.fromto(filename,65001,936)++","++data++'\n');
+		file.close();
+		var 用时2 = ( time.tick() - tk2 ) / 1000
+		mainForm.LogPrint.print(filename,"处理完成，用时："++用时2++"秒")
+		mainForm.progress.stepIt(); 
+		mainForm.static2.text = "清单读取/处理进度："++#filelist++"/"++k
+	}
+	用时 = ( time.tick() - beginTick ) / 1000
+	mainForm.LogPrint.print("识别结果保存至:",保存地址++"总计用时："++用时++"秒")
+	mainForm.StarBut.disabled = false;	
+}
+
+
+/*处理方法一{{*/
+var 开始处理1 = function(mainForm){
+	import time.performance;
+	import console;
+	var tk = time.performance.tick();
+	//mainForm.LogPrint.print("开始处理")
+	//遍历目录
+	import fsys;
+	//循环目录获取文件列表filelist
+	filelist = {};
+	mainForm.LogPrint.print("开始处理路径：",mainForm.DxfMenu.text);
+
+	fsys.enum(mainForm.DxfMenu.text, //指定要遍历的目录
+			"*.dxf", //指定查询文件名,支持windows掩码
+			function(dir,filename,fullpath,findData){
+				//io.print(dir,filename,fullpath,findData)
+				//import console;
+				//console.varDump(findData)
+
+				if(filename){
+           			//io.print("发现文件：",filename)
+           			//io.print("文件路径：",fullpath)
+           			//将文路径添加至文件列表
+           			table.push(filelist,fullpath);
+				}
+				else{
+					io.print("发现目录：",dir)
+				}
+			
+			//return false;
+		} //function结束。
+	
+	)//遍历结束。	
+	关键字匹配规则 = '<'++string.join( mainForm.KeyWordlist.items, '>|<' )++'>'	
+	var 用时 = ( time.performance.tick() - tk ) / 1000
+	mainForm.LogPrint.print("读取到"++#filelist++"个文件。用时："++用时++"秒");
+	mainForm.static2.text = "清单读取/处理进度："++#filelist++"/0"
+	
+	//初始化进度条
+	mainForm.progress.min = 0;
+	mainForm.progress.max = #filelist;
+	mainForm.progress.pos = 0;
+	mainForm.progress.hide = false;	//显示进度条
+	for(k,filename in filelist){ //循环读取文件列表
+		tk2 = time.performance.tick();
+		var ss = {};
+		mainForm.LogPrint.print("开始处理"++filename);
+		var str = string.load(filename)
+		var list = string.splitEx(str);
+		var newTab = table.unique(list);
+		for(i=1;#newTab;1){
+			s = string.match(string.fromto(newTab[i],936,65001),关键字匹配规则)
+			if(s!=null){
+				table.push(ss,newTab[i])	
+			}
+		}
+		newTab = table.unique(ss);
+		if(mainForm.FileLocation.text!=null){
+			保存地址 = mainForm.FileLocation.text++"\识别结果.csv"	
+		}else {
+			保存地址 = "C:\Users\Lcx\Desktop\识别结果.csv"
+		}
+	filename =string.fromto(filename,65001,936) 
+	file = io.open (保存地址,"a+" )
+	file.write(filename++","++string.fromto(string.join(newTab,","),65001,936)++'\n');
+	file.close();
+	var 用时2 = ( time.performance.tick() - tk2 ) / 1000
+	mainForm.LogPrint.print(file,"处理完成，用时："++用时2++"秒")
+	mainForm.progress.stepIt(); 
+	mainForm.static2.text = "清单读取/处理进度："++#filelist++"/"++k
+	}  
+用时 = ( time.performance.tick() - tk ) / 1000
+mainForm.LogPrint.print("识别结果保存至:",保存地址++"总计用时："++用时++"秒")
+mainForm.StarBut.disabled = false;	
+}
+/*}}*/
+
+mainForm.StarBut.oncommand = function(id,event){
+	hander,id_t =  thread.create( 开始处理,mainForm);
+	mainForm.LogPrint.print(hander,id_t)
+	mainForm.StarBut.disabled = true;
+}
+
+mainForm.StopBut.oncommand = function(id,event){
+	::PostThreadMessage(id_t,0x12/*_WM_QUIT*/,0,0)
+	thread.waitAll(hander); 
+	thread.set("红灯停", false)
+	raw.closehandle(hander)
+	io.print("线程已退出")
+	mainForm.StarBut.disabled = false;
+}
+
+mainForm.FileLocation.oncommand = function(id,event){
+	
+}
+
+mainForm.show();
+return win.loopMessage();
